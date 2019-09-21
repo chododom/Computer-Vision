@@ -41,6 +41,7 @@ def loadppm(filename):
                     y = 0
                     x += 1
         case += 1
+        
     return img;
 
 
@@ -55,6 +56,24 @@ def GetBluePixels(img):
 def GetRedPixels(img):
     '''given a numpy 3d array containing an image, return the red channel'''
     return img[:,:,0]
+
+def naiveGreyscale(img):
+    red = GetRedPixels(img)
+    green = GetGreenPixels(img)
+    blue = GetBluePixels(img)
+    
+    x = len(red)
+    y = len(red[0,:])
+    greyArr = np.zeros((x, y))
+    
+    for i in range(x):
+        for j in range(y):
+            greyArr[i][j] = (red[i][j] + green[i][j]+ blue[i][j]) // 3
+
+    return greyArr
+
+def thresholdArr(img):
+    pass
 
 
 
