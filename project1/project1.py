@@ -72,8 +72,24 @@ def naiveGreyscale(img):
 
     return greyArr
 
-def thresholdArr(img):
-    pass
+def thresholding(img):
+    red = GetRedPixels(img)
+    green = GetGreenPixels(img)
+    blue = GetBluePixels(img)
+    
+    x = len(red)
+    y = len(red[0,:])
+    thresholdArr = np.zeros((x, y))
+    
+    for i in range(x):
+        for j in range(y):
+            value = (red[i][j] + green[i][j]+ blue[i][j]) // 3
+            if value < 128:
+                thresholdArr[i][j] = 0
+            else:
+                thresholdArr[i][j] = 255
+
+    return thresholdArr
 
 
 
