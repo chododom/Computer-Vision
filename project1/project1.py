@@ -41,7 +41,7 @@ def loadppm(filename):
                     y = 0
                     x += 1
         case += 1
-        
+    file.close()
     return img;
 
 
@@ -91,7 +91,34 @@ def thresholding(img):
 
     return thresholdArr
 
-
+def normalize(img):
+    greyArr = naiveGreyscale(img)
+    x = len(greyArr[:,0])
+    y = len(greyArr[0,:])
+    cdfArr = np.zeros(256)
+    cdfValArr = np.zeros(256)
+    cdfCnt = 0
+    cdfMin = -1
+    equalizedArr = np.zeros((x, y))
+    
+    for i in range(x):
+        for j in range(y):
+            cdfArr[int(greyArr[i][j])] += 1
+    
+    first = True
+    for i in range(256):
+        if cdfArr[i] != 0:
+            if first:
+                cdfMin = cdfArr[i]
+            cdfValArr[i] = cdfArr[i] + cdfCnt
+            cdfCnt += cdfArr[i]
+    
+    for i in range(x):
+        for j in range(y):
+            equalizedArr[i][j] = round(((cdfValArr[int(greyArr[i][j])] - cdfMin) / (x * y - cdfMin)) * 255)
+    
+    return equalizedArr
+    
 
 if __name__ == "__main__":
   #put any command-line testing code you want here.
