@@ -26,7 +26,7 @@ def loadppm(filename):
                 raise Exception("Incorrect PPM file header")
         elif case == 1:
             width, height = int(arr[0]), int(arr[1])
-            img = np.zeros((height, width, 3), dtype=int)
+            img = np.zeros((height, width, 3), dtype="uint8")
         elif case == 2:
             max_val = arr[0]
         else:
@@ -45,18 +45,19 @@ def loadppm(filename):
     return img;
 
 
+# returns array representing the green channel
 def GetGreenPixels(img):
-    '''given a numpy 3d array containing an image, return the green channel'''
     return img[:,:,1]
 
+# returns array representing the blue channel
 def GetBluePixels(img):
-    '''given a numpy 3d array containing an image, return the blue channel'''
     return img[:,:,2]
 
+# returns array representing the red channel
 def GetRedPixels(img):
-    '''given a numpy 3d array containing an image, return the red channel'''
     return img[:,:,0]
 
+# converts RGB image to greyscale by averaging all 3 channel values
 def naiveGreyscale(img):
     red = GetRedPixels(img)
     green = GetGreenPixels(img)
@@ -68,10 +69,12 @@ def naiveGreyscale(img):
     
     for i in range(x):
         for j in range(y):
-            greyArr[i][j] = (red[i][j] + green[i][j]+ blue[i][j]) // 3
+            greyArr[i][j] = (int(red[i][j]) + int(green[i][j]) + int(blue[i][j])) // 3
 
     return greyArr
 
+
+# greyscale values get separated along the value of 128 to either be black or white
 def thresholding(img):
     red = GetRedPixels(img)
     green = GetGreenPixels(img)
@@ -83,7 +86,7 @@ def thresholding(img):
     
     for i in range(x):
         for j in range(y):
-            value = (red[i][j] + green[i][j]+ blue[i][j]) // 3
+            value = (int(red[i][j]) + int(green[i][j]) + int(blue[i][j])) // 3
             if value < 128:
                 thresholdArr[i][j] = 0
             else:
@@ -91,8 +94,9 @@ def thresholding(img):
 
     return thresholdArr
 
-def normalize(img):
-    greyArr = naiveGreyscale(img)
+
+# normalizes values of greyscale image in order to spread them out more evenly across all pixels
+def normalize(greyArr):
     x = len(greyArr[:,0])
     y = len(greyArr[0,:])
     cdfArr = np.zeros(256)
@@ -118,7 +122,58 @@ def normalize(img):
             equalizedArr[i][j] = round(((cdfValArr[int(greyArr[i][j])] - cdfMin) / (x * y - cdfMin)) * 255)
     
     return equalizedArr
+
+
+# function to equally scale down the values of all pictures to a certain max value
+def scaleDown(img, top):
+    red = GetRedPixels(img)
+    green = GetGreenPixels(img)
+    blue = GetBluePixels(img)
     
+    maxVal = 0
+    it = np.nditer(red, flags=['f_index'])
+    while not it.finished:
+        if it[0] > maxVal:
+            maxVal = it[0]
+        it.iternext()
+        
+    it = np.nditer(green, flags=['f_index'])
+    while not it.finished:
+        if it[0] > maxVal:
+            maxVal = it[0]
+        it.iternext()
+        
+    it = np.nditer(blue, flags=['f_index'])
+    while not it.finished:
+        if it[0] > maxVal:
+            maxVal = it[0]
+        it.iternext()
+    
+    ratio = maxVal / top
+    
+    for i in range(len(img)):
+        for j in range(len(img[0])):
+            for k in range(len(img[(i, j)])):
+                img[(i, j, k)] = img[(i, j, k)] // ratio
+    
+    return img
+
+
+def mergeChannels(r, g, b):
+    if len(r) != len(g) or len(g) != len(b):
+        raise Exception("Cannot merge channels of different sizes")
+        
+    height = len(r)
+    width = len(r[0])
+    img = np.zeros((height, width, 3), dtype="uint8")
+    for i in range(height):
+        for j in range(width):
+            img[(i, j, 0)] = r[i][j]
+            img[(i, j, 1)] = g[i][j]
+            img[(i, j, 2)] = b[i][j]
+            
+    scaleDown(img, 255)
+    return img    
 
 if __name__ == "__main__":
   #put any command-line testing code you want here.
