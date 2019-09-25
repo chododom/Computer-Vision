@@ -19,7 +19,7 @@ def loadppm(filename):
             break
         arr = line.split()
         # ignore comment lines
-        if arr[0] == "#":
+        if arr[0].startswith("#"):
             continue
         elif case == 0:
             if line != "P3\n":
@@ -159,6 +159,7 @@ def scaleDown(img, top):
     return img
 
 
+# function merges three separate RGB channels into one 3D image
 def mergeChannels(r, g, b):
     if len(r) != len(g) or len(g) != len(b):
         raise Exception("Cannot merge channels of different sizes")
@@ -176,5 +177,5 @@ def mergeChannels(r, g, b):
     return img    
 
 if __name__ == "__main__":
-  #put any command-line testing code you want here.
+  # testing done in jupyter notebook
   pass
