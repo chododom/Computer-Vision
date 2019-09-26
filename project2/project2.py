@@ -1,12 +1,11 @@
 import numpy as np
 
-def my_imfilter(image, filter):
-  """
+"""
   Apply a filter to an image. Return the filtered image.
 
   Args
   - image: numpy nd-array of dim (m, n, c)
-  - filter: numpy nd-array of dim (k, k)
+  - filter: numpy nd-array of dim (x, y)
   Returns
   - filtered_image: numpy nd-array of dim (m, n, c)
 
@@ -17,27 +16,80 @@ def my_imfilter(image, filter):
   - I encourage you to try implementing this naively first, just be aware that
    it may take an absurdly long time to run. You will need to get a function
    that takes a reasonable amount of time to run so that I can finish grading 
-   before the heat death of hte universe. 
+   before the heat death of the universe. 
    your code works.
   - Remember these are RGB images, accounting for the final image dimension.
-  """
+"""
 
-  assert filter.shape[0] % 2 == 1
-  assert filter.shape[1] % 2 == 1
+def GetGreenPixels(img):
+    return img[:,:,1]
 
-  ############################
-  ### TODO: YOUR CODE HERE ###
+# returns array representing the blue channel
+def GetBluePixels(img):
+    return img[:,:,2]
 
-  raise NotImplementedError('`my_imfilter` function in `student_code.py` ' +
-    'needs to be implemented')
+# returns array representing the red channel
+def GetRedPixels(img):
+    return img[:,:,0]
 
-  ### END OF STUDENT CODE ####
-  ############################
+# function merges three separate RGB channels into one 3D image
+def mergeChannels(r, g, b):
+    if len(r) != len(g) or len(g) != len(b):
+        raise Exception("Cannot merge channels of different sizes")
+        
+    height = len(r)
+    width = len(r[0])
+    img = np.zeros((height, width, 3))
+    for i in range(height):
+        for j in range(width):
+            img[(i, j, 0)] = r[i][j]
+            img[(i, j, 1)] = g[i][j]
+            img[(i, j, 2)] = b[i][j]
+            
+    return img   
 
-  return filtered_image
+def convolve(channel, filter):
+    m = len(channel)
+    n = len(channel[0])
+    x = len(filter)
+    y = len(filter[0])
+    
+    if x > y:
+        padding = x // 2
+    else:
+        padding = y // 2
+        
+    padded_channel = np.pad(channel, (padding, padding), 'constant')
+    filtered_channel = np.zeros((m,n))
+    
+    for i in range(m):
+        for j in range(n):
+            # padding can be either x or y (depends which is larger), so adding and subtracting half of size of kernel is done separately
+            filtered_channel[(i,j)] = np.sum(np.multiply(filter, padded_channel[i + padding - x // 2 : i + padding + x // 2 + 1, j + padding - y // 2 : j + padding + y // 2 + 1]))
+                
+    return filtered_channel
 
-def create_hybrid_image(image1, image2, filter):
-  """
+def my_imfilter(image, filter):
+    
+    assert filter.shape[0] % 2 == 1
+    assert filter.shape[1] % 2 == 1
+    
+    m, n, rgb = image.shape
+    
+    filtered_img = np.zeros(image.shape)
+    
+    red = GetRedPixels(image)
+    green = GetGreenPixels(image)
+    blue = GetBluePixels(image)
+
+    red_filter = convolve(red, filter)
+    green_filter = convolve(green, filter)
+    blue_filter = convolve(blue, filter)
+                
+    filtered_img = mergeChannels(red_filter, green_filter, blue_filter)
+    return filtered_img
+
+"""
   Takes two images and creates a hybrid image. Returns the low
   frequency content of image1, the high frequency content of
   image 2, and the hybrid image.
@@ -59,18 +111,18 @@ def create_hybrid_image(image1, image2, filter):
   - If you want to use images with different dimensions, you should resize them
     in the notebook code.
   """
-
-  assert image1.shape[0] == image2.shape[0]
-  assert image1.shape[1] == image2.shape[1]
-  assert image1.shape[2] == image2.shape[2]
+def create_hybrid_image(image1, image2, filter):
+    assert image1.shape[0] == image2.shape[0]
+    assert image1.shape[1] == image2.shape[1]
+    assert image1.shape[2] == image2.shape[2]
 
   ############################
   ### TODO: YOUR CODE HERE ###
 
-  raise NotImplementedError('`create_hybrid_image` function in ' + 
+    raise NotImplementedError('`create_hybrid_image` function in ' + 
     '`student_code.py` needs to be implemented')
 
   ### END OF STUDENT CODE ####
   ############################
 
-  return low_frequencies, high_frequencies, hybrid_image
+    return low_frequencies, high_frequencies, hybrid_image
