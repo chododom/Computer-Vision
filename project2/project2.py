@@ -115,14 +115,10 @@ def create_hybrid_image(image1, image2, filter):
     assert image1.shape[0] == image2.shape[0]
     assert image1.shape[1] == image2.shape[1]
     assert image1.shape[2] == image2.shape[2]
+    
+    low_frequency1 = my_imfilter(image1, filter)
+    low_frequency2 = my_imfilter(image2, filter)
+    high_frequency2 = np.clip(np.subtract(image2,low_frequency2), 0, 1)
+    hybrid_image = np.clip(np.add(low_frequency1, high_frequency2), 0, 1)
 
-  ############################
-  ### TODO: YOUR CODE HERE ###
-
-    raise NotImplementedError('`create_hybrid_image` function in ' + 
-    '`student_code.py` needs to be implemented')
-
-  ### END OF STUDENT CODE ####
-  ############################
-
-    return low_frequencies, high_frequencies, hybrid_image
+    return low_frequency1, high_frequency2, hybrid_image
