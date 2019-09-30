@@ -1,0 +1,11 @@
+Grading Rubric:
+
+* Part 1: loading ppm: 10/10
+* Part 2: separating colors 20/20 
+* Part 3: greyscale 20/20
+* Part 4: threshold 20/20
+* Part 5: histogram  30/30
+* Bonus:  0/0
+* Total: 100
+
+Notes: good. Are the boxes same color or different?
