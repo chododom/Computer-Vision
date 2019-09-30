@@ -1,25 +1,6 @@
 import numpy as np
 
-"""
-  Apply a filter to an image. Return the filtered image.
-
-  Args
-  - image: numpy nd-array of dim (m, n, c)
-  - filter: numpy nd-array of dim (x, y)
-  Returns
-  - filtered_image: numpy nd-array of dim (m, n, c)
-
-  HINTS:
-  - You may not use any libraries that do the work for you. Using numpy to work
-   with matrices is fine and encouraged. Using opencv or similar to do the
-   filtering for you is not allowed.
-  - I encourage you to try implementing this naively first, just be aware that
-   it may take an absurdly long time to run. You will need to get a function
-   that takes a reasonable amount of time to run so that I can finish grading 
-   before the heat death of the universe. 
-   your code works.
-  - Remember these are RGB images, accounting for the final image dimension.
-"""
+# Functions from my previous project
 
 def GetGreenPixels(img):
     return img[:,:,1]
@@ -48,6 +29,11 @@ def mergeChannels(r, g, b):
             
     return img   
 
+################################################################################################################################
+
+'''
+  Apply filter to a given channel.
+'''
 def convolve(channel, filter):
     m = len(channel)
     n = len(channel[0])
@@ -65,10 +51,31 @@ def convolve(channel, filter):
     for i in range(m):
         for j in range(n):
             # padding can be either x or y (depends which is larger), so adding and subtracting half of size of kernel is done separately
+            # NumPy documentation was used to find a fast way of performing this task
             filtered_channel[(i,j)] = np.sum(np.multiply(filter, padded_channel[i + padding - x // 2 : i + padding + x // 2 + 1, j + padding - y // 2 : j + padding + y // 2 + 1]))
                 
     return filtered_channel
 
+"""
+  Apply a filter to an image. Return the filtered image.
+
+  Args
+  - image: numpy nd-array of dim (m, n, c)
+  - filter: numpy nd-array of dim (x, y)
+  Returns
+  - filtered_image: numpy nd-array of dim (m, n, c)
+
+  HINTS:
+  - You may not use any libraries that do the work for you. Using numpy to work
+   with matrices is fine and encouraged. Using opencv or similar to do the
+   filtering for you is not allowed.
+  - I encourage you to try implementing this naively first, just be aware that
+   it may take an absurdly long time to run. You will need to get a function
+   that takes a reasonable amount of time to run so that I can finish grading 
+   before the heat death of the universe. 
+   your code works.
+  - Remember these are RGB images, accounting for the final image dimension.
+"""
 def my_imfilter(image, filter):
     
     assert filter.shape[0] % 2 == 1
@@ -110,7 +117,7 @@ def my_imfilter(image, filter):
     as 'clipping'.
   - If you want to use images with different dimensions, you should resize them
     in the notebook code.
-  """
+"""
 def create_hybrid_image(image1, image2, filter):
     assert image1.shape[0] == image2.shape[0]
     assert image1.shape[1] == image2.shape[1]
