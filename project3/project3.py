@@ -2,6 +2,13 @@ import cv2
 import math
 import numpy as np
 
+def reduce_channels(img):
+    arr = np.ndarray((len(img), len(img[0])), dtype="uint8")
+    for i in range(len(img)):
+        for j in range(len(img[0])):
+            arr[i][j] = img[i][j][0]
+    return arr
+
 def detect_edges(img):
     vertical_sobel = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
     horizontal_sobel = np.asarray([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
@@ -12,13 +19,10 @@ def detect_edges(img):
     return get_edge_magnitudes(v_dst, h_dst)
 
 def get_edge_magnitudes(vertical, horizontal):
-    return np.sqrt(np.square(vertical) + np.square(horizontal))
+    return np.clip(np.hypot(vertical, horizontal), 0, 255).astype(np.uint8)
     
 def calculate_orientation(vertical, horizontal):
     return np.arctan2(horizontal, vertical)
-    
-def normalize_data(data):
-    return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 # greyscale values get separated along the value of 128 to either be black or white
 def thresholding(img):
@@ -28,7 +32,7 @@ def thresholding(img):
     
     for i in range(x):
         for j in range(y):
-            val = img[i][j][0]
+            val = img[i][j]
             if val < 128:
                 thresholdArr[i][j] = 0
             else:
@@ -36,65 +40,81 @@ def thresholding(img):
 
     return thresholdArr
 
+def nearest_rho(val, rhos):
+    id = (np.abs(rhos - val)).argmin()
+    return rhos[id]
+
+# parts of this function inspired by source: https://alyssaq.github.io/2014/understanding-hough-transform/
 def myHoughLines(image, rho_res, theta_res, threshold):
-    # apply Gaussian blur and Sobel edge detector
-    detected_edges = detect_edges(image)
+    theta_vals = np.arange(0, math.pi, theta_res)   
+    l = int(np.ceil(np.hypot(len(image), len(image[0]))))
+    rhos = np.arange(-l, l, 2 * l)
     
-    edges = thresholding(detected_edges)
+    acc = np.zeros((2 * l, len(theta_vals)), dtype=np.uint32)
+    y_edges, x_edges = np.nonzero(image)  # row and column indexes of edges
     
-    theta_vals = np.linspace(0, math.pi, 8) #8 vals between 0 and pi
-    lines = {}
+    for i in range(len(x_edges)):
+        x = x_edges[i]
+        y = y_edges[i]
+        
+        for t in range(len(theta_vals)):
+            rho = int(round(x * np.cos(theta_vals[t]) + y * np.sin(theta_vals[t])))
+            acc[rho][t] += 1
     
-    for x in range(len(image)):
-        for y in range(len(image[0])):
-            for t in theta_vals:
-                p = x * math.cos(t) + y * math.sin(t)
-                p = round(p, 1)
-                if (p, t) in lines.keys():
-                      lines[(p, t)] += 1
-                else:
-                      lines[(p, t)] = 0
+    cnt = 0
+    for i in range(len(acc)):
+        for j in range(len(theta_vals)):
+            if acc[i][j] > threshold:
+                cnt += 1
+                
+    lines = np.ndarray((cnt, 2))
+    index = 0
+    for i in range(len(acc)):
+        for j in range(len(theta_vals)):
+            if acc[i][j] > threshold:
+                lines[index] = i, j
+                index += 1
+                
+    print('Strong line count: ' + str(cnt))
     
     # shape according to cv2's documentation of HoughLines function
-    strong_lines = np.ndarray((len(lines), 1, 2), dtype="uint8")
-    index = 0
-    for key in lines:
-        if lines[key] > threshold:
-            strong_lines[index][0] = [key[0], key[1]]
-            index += 1
-            # print("Line with rho: " + str(key[0]) + " and theta: " + str(key[1]) + " has " + str(lines[key]) + " votes")
-            
+    strong_lines = np.ndarray((cnt, 1, 2))
+                
+    for i in range(cnt):
+        strong_lines[i][0] = lines[i][0], lines[i][1] * theta_res
+   
     return strong_lines
+
     
 def non_max_suppression(magnitudes, orientations):
     padded_magnitudes = np.pad(magnitudes, (1, 1), 'constant')
     
-    x, y, channels = magnitudes.shape
+    x, y = magnitudes.shape
     for i in range(1, x):
         for j in range(1, y):
-            if round(orientations[i - 1][j - 1][0]) == 0:
-                if padded_magnitudes[i][j - 1][0] > padded_magnitudes[i][j][0] or padded_magnitudes[i][j + 1][0] > padded_magnitudes[i][j][0]:
-                    magnitudes[i - 1][j - 1][0] = 0
-            elif round(orientations[i - 1][j - 1][0]) == 90:
-                if padded_magnitudes[i - 1][j][0] > padded_magnitudes[i][j][0] or padded_magnitudes[i + 1][j][0] > padded_magnitudes[i][j][0]:
-                    magnitudes[i - 1][j - 1][0] = 0
-            elif round(orientations[i - 1][j - 1][0]) == 45:
-                if padded_magnitudes[i + 1][j - 1][0] > padded_magnitudes[i][j][0] or padded_magnitudes[i - 1][j + 1][0] > padded_magnitudes[i][j][0]:
-                    magnitudes[i - 1][j - 1][0] = 0
-            elif round(orientations[i - 1][j - 1][0]) == 135:
-                if padded_magnitudes[i - 1][j - 1][0] > padded_magnitudes[i][j][0] or padded_magnitudes[i + 1][j + 1][0] > padded_magnitudes[i][j]:
-                    magnitudes[i - 1][j - 1][0] = 0
+            if round(orientations[i - 1][j - 1]) == 0:
+                if padded_magnitudes[i][j - 1] > padded_magnitudes[i][j] or padded_magnitudes[i][j + 1] > padded_magnitudes[i][j]:
+                    magnitudes[i - 1][j - 1] = 0
+            elif round(orientations[i - 1][j - 1]) == 90:
+                if padded_magnitudes[i - 1][j] > padded_magnitudes[i][j] or padded_magnitudes[i + 1][j] > padded_magnitudes[i][j]:
+                    magnitudes[i - 1][j - 1] = 0
+            elif round(orientations[i - 1][j - 1]) == 45:
+                if padded_magnitudes[i + 1][j - 1] > padded_magnitudes[i][j] or padded_magnitudes[i - 1][j + 1] > padded_magnitudes[i][j]:
+                    magnitudes[i - 1][j - 1] = 0
+            elif round(orientations[i - 1][j - 1]) == 135:
+                if padded_magnitudes[i - 1][j - 1] > padded_magnitudes[i][j] or padded_magnitudes[i + 1][j + 1] > padded_magnitudes[i][j]:
+                    magnitudes[i - 1][j - 1] = 0
             else:
                 continue
-                
-    padded_magnitudes = np.pad(magnitudes, (1, 1), 'constant')
-        
+                 
+    return magnitudes
+    '''
     for i in range(x):
         for j in range(y):
-            if magnitudes[i][j][0] < padded_magnitudes[i + 1 - 1][j + 1 - 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1 - 1][j + 1 + 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1 + 1][j + 1 + 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1 + 1][j + 1 - 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1][j + 1 - 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1][j + 1 + 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1 - 1][j + 1][0] or magnitudes[i][j][0] < padded_magnitudes[i + 1 + 1][j + 1][0]:
-                magnitudes[i][j][0] = 0
+            if magnitudes[i][j] < padded_magnitudes[i + 1 - 1][j + 1 - 1] or magnitudes[i][j] < padded_magnitudes[i + 1 - 1][j + 1 + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 + 1][j + 1 + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 + 1][j + 1 - 1] or magnitudes[i][j] < padded_magnitudes[i + 1][j + 1 - 1] or magnitudes[i][j] < padded_magnitudes[i + 1][j + 1 + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 - 1][j + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 + 1][j + 1]:
+                magnitudes[i][j] = 0
     
-    return magnitudes
+    return magnitudes'''
     
     
     
