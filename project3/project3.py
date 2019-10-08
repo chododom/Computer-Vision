@@ -117,7 +117,20 @@ def non_max_suppression(magnitudes, orientations):
     return magnitudes'''
     
     
-    
+def magnitude_threshold(val, t_h, t_l):
+    if val < t_l:
+        val = 0
+    elif val > t_h:
+        val = 255
+    else:
+        return val
+    return val
+
+def track_edges(img):
+    weak_edges = np.where(100 < img < 200)
+    print(weak_edges)
+    return None
+
     
     
     
