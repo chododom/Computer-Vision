@@ -40,9 +40,8 @@ def thresholding(img):
 
     return thresholdArr
 
-def nearest_rho(val, rhos):
-    id = (np.abs(rhos - val)).argmin()
-    return rhos[id]
+def nearest_rho(val, rho_res):
+    return int(np.rint(val / rho_res) * rho_res)
 
 # parts of this function inspired by source: https://alyssaq.github.io/2014/understanding-hough-transform/
 def myHoughLines(image, rho_res, theta_res, threshold):
@@ -58,7 +57,7 @@ def myHoughLines(image, rho_res, theta_res, threshold):
         y = y_edges[i]
         
         for t in range(len(theta_vals)):
-            rho = int(round(x * np.cos(theta_vals[t]) + y * np.sin(theta_vals[t])))
+            rho = nearest_rho(x * np.cos(theta_vals[t]) + y * np.sin(theta_vals[t]), rho_res)
             acc[rho][t] += 1
     
     cnt = 0
@@ -85,37 +84,37 @@ def myHoughLines(image, rho_res, theta_res, threshold):
    
     return strong_lines
 
-    
 def non_max_suppression(magnitudes, orientations):
     padded_magnitudes = np.pad(magnitudes, (1, 1), 'constant')
     
-    x, y = magnitudes.shape
-    for i in range(1, x):
-        for j in range(1, y):
-            if round(orientations[i - 1][j - 1]) == 0:
-                if padded_magnitudes[i][j - 1] > padded_magnitudes[i][j] or padded_magnitudes[i][j + 1] > padded_magnitudes[i][j]:
-                    magnitudes[i - 1][j - 1] = 0
-            elif round(orientations[i - 1][j - 1]) == 90:
-                if padded_magnitudes[i - 1][j] > padded_magnitudes[i][j] or padded_magnitudes[i + 1][j] > padded_magnitudes[i][j]:
-                    magnitudes[i - 1][j - 1] = 0
-            elif round(orientations[i - 1][j - 1]) == 45:
-                if padded_magnitudes[i + 1][j - 1] > padded_magnitudes[i][j] or padded_magnitudes[i - 1][j + 1] > padded_magnitudes[i][j]:
-                    magnitudes[i - 1][j - 1] = 0
-            elif round(orientations[i - 1][j - 1]) == 135:
-                if padded_magnitudes[i - 1][j - 1] > padded_magnitudes[i][j] or padded_magnitudes[i + 1][j + 1] > padded_magnitudes[i][j]:
-                    magnitudes[i - 1][j - 1] = 0
+    h, w = magnitudes.shape
+    for x in range(1, h + 1):
+        for y in range(1, w + 1):
+            
+            # cmp to east and west
+            if round(orientations[x - 1][y - 1]) == 0:
+                if padded_magnitudes[x][y + 1] > padded_magnitudes[x][y] or padded_magnitudes[x][y - 1] > padded_magnitudes[x][y]:
+                    magnitudes[x - 1][y - 1] = 0
+                    
+            # cmp to north and south
+            elif round(orientations[x - 1][y - 1]) == 90:
+                if padded_magnitudes[x - 1][y] > padded_magnitudes[x][y] or padded_magnitudes[x + 1][y] > padded_magnitudes[x][y]:
+                    magnitudes[x - 1][y - 1] = 0
+                    
+            # cmp to north-east and south-west
+            elif round(orientations[x - 1][y - 1]) == 45:
+                if padded_magnitudes[x - 1][y + 1] > padded_magnitudes[x][y] or padded_magnitudes[x + 1][y - 1] > padded_magnitudes[x][y]:
+                    magnitudes[x - 1][y - 1] = 0
+                    
+            # cmp to north-west and south-east
+            elif round(orientations[x - 1][y - 1]) == 135:
+                if padded_magnitudes[x - 1][y - 1] > padded_magnitudes[x][y] or padded_magnitudes[x + 1][y + 1] > padded_magnitudes[x][y]:
+                    magnitudes[x - 1][y - 1] = 0
+                    
             else:
                 continue
                  
-    return magnitudes
-    '''
-    for i in range(x):
-        for j in range(y):
-            if magnitudes[i][j] < padded_magnitudes[i + 1 - 1][j + 1 - 1] or magnitudes[i][j] < padded_magnitudes[i + 1 - 1][j + 1 + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 + 1][j + 1 + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 + 1][j + 1 - 1] or magnitudes[i][j] < padded_magnitudes[i + 1][j + 1 - 1] or magnitudes[i][j] < padded_magnitudes[i + 1][j + 1 + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 - 1][j + 1] or magnitudes[i][j] < padded_magnitudes[i + 1 + 1][j + 1]:
-                magnitudes[i][j] = 0
-    
-    return magnitudes'''
-    
+    return magnitudes    
     
 def magnitude_threshold(val, t_h, t_l):
     if val < t_l:
@@ -126,13 +125,42 @@ def magnitude_threshold(val, t_h, t_l):
         return val
     return val
 
-def track_edges(img):
-    weak_edges = np.where(100 < img < 200)
-    print(weak_edges)
-    return None
+def track_edges(img, t_h, t_l):
+    # get x and y indices for pixels with weak edges (t_l <= val <= t_h)
+    weak_edges_x, weak_edges_y = np.nonzero(np.where(np.logical_and(t_l < img, img < t_h), img, 0))
+    
+    padded_img = np.pad(img, (1, 1), 'constant')
+    weak_edges_x += 1
+    weak_edges_y += 1
+    
+    for x in range(len(weak_edges_x)):
+        for y in range(len(weak_edges_y)):
+            # if at least one neighbour is strong (val > t_h), keep current pixel, otherwise 0
+            if padded_img[weak_edges_x[x] - 1][weak_edges_y[y] - 1] <= t_h and padded_img[weak_edges_x[x] - 1][weak_edges_y[y]] <= t_h and padded_img[weak_edges_x[x] - 1][weak_edges_y[y] + 1] <= t_h and padded_img[weak_edges_x[x]][weak_edges_y[y] - 1] <= t_h and padded_img[weak_edges_x[x]][weak_edges_y[y] + 1] <= t_h and padded_img[weak_edges_x[x] + 1][weak_edges_y[y] - 1] <= t_h and padded_img[weak_edges_x[x] + 1][weak_edges_y[y]] <= t_h and padded_img[weak_edges_x[x] + 1][weak_edges_y[y] + 1] <= t_h:
+                img[weak_edges_x[x] - 1][weak_edges_y[y] - 1] = 0              
+    
+    return img
 
+def myCanny(img, t_h, t_l):
+    # kernels
+    vertical_sobel = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+    horizontal_sobel = np.asarray([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+    gaussian = cv2.getGaussianKernel(ksize=10, sigma=5)
+
+    # blur image with Gaussian filter
+    img = cv2.filter2D(img, cv2.CV_16S, gaussian)
     
+    v_dst = cv2.filter2D(img, cv2.CV_16S, vertical_sobel)
+    h_dst = cv2.filter2D(img, cv2.CV_16S, horizontal_sobel)
+
+    magnitudes = np.hypot(v_dst, h_dst)
+    orientations = calculate_orientation(v_dst, h_dst)
     
+    n_m_sup = non_max_suppression(magnitudes, orientations)
+    
+    threshold_magnitudes = np.vectorize(magnitude_threshold)(n_m_sup, t_h, t_l)
+    
+    return track_edges(threshold_magnitudes, t_h, t_l)
     
     
     
