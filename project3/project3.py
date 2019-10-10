@@ -127,25 +127,26 @@ def magnitude_threshold(val, t_h, t_l):
 
 def track_edges(img, t_h, t_l):
     # get x and y indices for pixels with weak edges (t_l <= val <= t_h)
-    weak_edges_x, weak_edges_y = np.nonzero(np.where(np.logical_and(t_l < img, img < t_h), img, 0))
+    #weak_edges_x, weak_edges_y = np.nonzero(np.where(np.logical_and(t_l <= img, img <= t_h), img, 0))
     
     padded_img = np.pad(img, (1, 1), 'constant')
-    weak_edges_x += 1
-    weak_edges_y += 1
+    #weak_edges_x += 1
+    #weak_edges_y += 1
     
-    for x in range(len(weak_edges_x)):
-        for y in range(len(weak_edges_y)):
+    for x in range(img.shape[0]):
+        for y in range(img.shape[1]):
             # if at least one neighbour is strong (val > t_h), keep current pixel, otherwise 0
-            if padded_img[weak_edges_x[x] - 1][weak_edges_y[y] - 1] <= t_h and padded_img[weak_edges_x[x] - 1][weak_edges_y[y]] <= t_h and padded_img[weak_edges_x[x] - 1][weak_edges_y[y] + 1] <= t_h and padded_img[weak_edges_x[x]][weak_edges_y[y] - 1] <= t_h and padded_img[weak_edges_x[x]][weak_edges_y[y] + 1] <= t_h and padded_img[weak_edges_x[x] + 1][weak_edges_y[y] - 1] <= t_h and padded_img[weak_edges_x[x] + 1][weak_edges_y[y]] <= t_h and padded_img[weak_edges_x[x] + 1][weak_edges_y[y] + 1] <= t_h:
-                img[weak_edges_x[x] - 1][weak_edges_y[y] - 1] = 0              
-    
+            if t_l <= img[x][y] and img[x][y] <= t_h:
+                if padded_img[x - 1][y - 1] <= t_h and padded_img[x - 1][y] <= t_h and padded_img[x - 1][y + 1] <= t_h and padded_img[x][y - 1] <= t_h and padded_img[x][y + 1] <= t_h and padded_img[x + 1][y - 1] <= t_h and padded_img[x + 1][y] <= t_h and padded_img[x + 1][y + 1] <= t_h:
+                    img[x - 1][y - 1] = 0  
+            
     return img
 
 def myCanny(img, t_h, t_l):
     # kernels
     vertical_sobel = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
     horizontal_sobel = np.asarray([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
-    gaussian = cv2.getGaussianKernel(ksize=10, sigma=5)
+    gaussian = cv2.getGaussianKernel(ksize=5, sigma=1)
 
     # blur image with Gaussian filter
     img = cv2.filter2D(img, cv2.CV_16S, gaussian)
