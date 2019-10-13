@@ -84,6 +84,7 @@ def myHoughLines(image, rho_res, theta_res, threshold):
    
     return strong_lines
 
+# non-maximum suppression function to choose strongest pixels in local neighbourhoods
 def non_max_suppression(magnitudes, orientations):
     padded_magnitudes = np.pad(magnitudes, (1, 1), 'constant')
     
@@ -116,6 +117,7 @@ def non_max_suppression(magnitudes, orientations):
                  
     return magnitudes    
     
+# double thresholding function to separate lines according to their strength
 def magnitude_threshold(val, t_h, t_l):
     if val < t_l:
         val = 0
@@ -125,6 +127,7 @@ def magnitude_threshold(val, t_h, t_l):
         return val
     return val
 
+# edge tracking function to thin out edge lines
 def track_edges(img, t_h, t_l):
     # get x and y indices for pixels with weak edges (t_l <= val <= t_h)
     #weak_edges_x, weak_edges_y = np.nonzero(np.where(np.logical_and(t_l <= img, img <= t_h), img, 0))
@@ -142,6 +145,7 @@ def track_edges(img, t_h, t_l):
             
     return img
 
+# wrapper for all functions included in the Canny edge detection tool
 def myCanny(img, t_h, t_l):
     # kernels
     vertical_sobel = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
