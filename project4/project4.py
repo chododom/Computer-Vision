@@ -62,7 +62,7 @@ def SuppressNonMax(Rvals, numPts):
     for i in range(1, r_vals.shape[0]):
         min_sup_r = np.inf
         for j in range(0, i):
-            distance = np.hypot(r_vals[j][0], r_vals[j][1])
+            distance = np.hypot(r_vals[i][0] - r_vals[j][0], r_vals[i][1] - r_vals[j][1])
             if distance < min_sup_r:
                 min_sup_r = distance
         r_vals[i][3] = min_sup_r
