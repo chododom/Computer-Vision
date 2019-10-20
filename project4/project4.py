@@ -40,7 +40,8 @@ def HarrisDetector(img,k = 0.04):
     return r_vals
 
 
-def SuppressNonMax(Rvals, numPts):
+# suppresses local R-values into one maximum
+def SuppressNonMax(Rvals, numPts, top_x_percent):
     height = len(Rvals)
     width = len(Rvals[0])
     
@@ -50,7 +51,7 @@ def SuppressNonMax(Rvals, numPts):
     max_r = Rvals.max()
     for i in range(height):
         for j in range(width):
-            if Rvals[i][j] > 0.01 * max_r:
+            if Rvals[i][j] > (1 - top_x_percent) * max_r:
                 r_vals[index] = (i, j, Rvals[i][j], 0)
                 index += 1
 
@@ -76,3 +77,20 @@ def SuppressNonMax(Rvals, numPts):
         y_vals[i] = r_vals[i][1]
         
     return x_vals, y_vals
+
+############################################################################################################################################
+
+def im2single(im):
+    im = im.astype(np.float32) / 255
+    return im
+
+def single2im(im):
+    im *= 255
+    im = im.astype(np.uint8)
+    return im
+
+def load_image(path):
+    return im2single(cv2.imread(path))[:, :, ::-1]
+
+def save_image(path, im):
+    return cv2.imwrite(path, single2im(im.copy())[:, :, ::-1])
