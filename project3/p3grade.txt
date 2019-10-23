@@ -1,0 +1,23 @@
+Project 3:
+
+Project 3A: Sobel and Hough 
+- sobel:  30/30 - good
+- hough 60/70  - not clear you tested this on multiple test images
+- Subtotal : 90/100
+
+Notes: no real comments in code.  Why not test on that cool pavement image?
+
+Project 3B: Canny
+- gaussian blur /10
+- gradient /10 
+- non-max /30
+- threshold /10
+- edge tracking: /30
+- results and testing: /10
+- Subtotal: 100/100
+
+Notes: good, above-average writeup
+
+Total: 190/200
+
+- 
