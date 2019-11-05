@@ -2,6 +2,26 @@ import numpy as np
 
 
 def match_features(features1, features2, x1, y1, x2, y2):
+    
+    matches = np.zeros((features1.shape[0], 2)).astype(np.int32)
+    confidences = np.zeros(features1.shape[0]).astype(np.int32)
+    
+    match_cnt = 0
+    for i in range(features1.shape[0]):
+        distances = np.sum((features1[i] - features2) ** 2, axis=1)
+        closest_match = np.argsort(distances)[0]
+        distances = np.sort(distances)
+        
+        # empirical value 0.68
+        if (distances[0] / distances[1] < 0.68):
+            matches[match_cnt] = i, closest_match
+            confidences[match_cnt] = distances[0]
+            match_cnt += 1
+
+
+    
+    
+    
     """
     This function does not need to be symmetric (e.g. it can produce
     different numbers of matches depending on the order of the arguments).
@@ -38,8 +58,6 @@ def match_features(features1, features2, x1, y1, x2, y2):
     # TODO: YOUR CODE HERE                                                        #
     #############################################################################
 
-    raise NotImplementedError('`match_features` function in ' +
-        '`student_feature_matching.py` needs to be implemented')
 
     #############################################################################
     #                             END OF YOUR CODE                              #

@@ -1,77 +1,81 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import cv2
+import sys
+
+def Magnitude( Gx, Gy ):
+    ''' @input: Gx - 2d np arr, Gy - 2d np arr
+    @output: magnitude of the image, 2d np arr
+    '''
+    return np.clip( np.hypot( Gx, Gy ), 0, 255 ).astype(np.uint8)
+
+# Gradient Direction
+def Grad_Direction( Gx, Gy ):
+    ''' @input: Gx - 2d np arr, Gy - 2d np arr
+    @output: arctan of Gx and Gy converted to degrees - 2d np arr
+    '''
+    return np.degrees( np.arctan2( Gy, Gx ) )
+
+def Normalize_Direction( Grad_Dir ):
+    ''' @input: Gradient Dir - 2d np arr
+    @output: normalized Gradient Direction - 2d np arr
+    '''
+    #tmp = np.rint( Grad_Dir / 45 ).astype('int16') * 45
+    #return np.where( tmp < 0, tmp + 180, tmp )
+    return Grad_Dir + 180
+
+def Filtered_Image( image ):
+    ''' @input: image - 2d np arr
+    @output: Gx - 2d np arr, Gy 2d np arr
+    - only to make the code shorter
+    '''
+
+    GaussKernel = cv2.getGaussianKernel(ksize=5, sigma=1)
+
+    result = cv2.filter2D(image, -1, GaussKernel)
+    result = cv2.filter2D(result, -1, GaussKernel.transpose())
+
+    Kx = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+    Ky = np.asarray([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
 
 
-def get_features(image, x, y, feature_width, scales=None):
-    """
-    JR Writes: To start with, you might want to simply use normalized patches as your
-    local feature. This is very simple to code and works OK. However, to get
-    maximal points you may need to implement a more effective SIFT descriptor
-    (See Szeliski 4.1.2 or the original publications at
-    http://www.cs.ubc.ca/~lowe/keypoints/)
+    Gx = cv2.filter2D( result, cv2.CV_16S, Kx )
+    Gy = cv2.filter2D( result, cv2.CV_16S, Ky )
 
+    return Gx, Gy
 
-    Below for advanced implementation:
+def get_features(image, x_coord, y_coord, f_w, scales=None):
 
-    Your implementation does not need to exactly match the SIFT reference.
-    Here are the key properties your (baseline) descriptor should have:
-    (1) a 4x4 grid of cells, each feature_width/4. It is simply the
-        terminology used in the feature literature to describe the spatial
-        bins where gradient distributions will be described.
-    (2) each cell should have a histogram of the local distribution of
-        gradients in 8 orientations. Appending these histograms together will
-        give you 4x4 x 8 = 128 dimensions.
-    (3) Each feature should be normalized to unit length.
-
-    You do not need to perform the interpolation in which each gradient
-    measurement contributes to multiple orientation bins in multiple cells
-    As described in Szeliski, a single gradient measurement creates a
-    weighted contribution to the 4 nearest cells and the 2 nearest
-    orientation bins within each cell, for 8 total contributions. This type
-    of interpolation probably will help, though.
-
-    You do not have to explicitly compute the gradient orientation at each
-    pixel (although you are free to do so). You can instead filter with
-    oriented filters (e.g. a filter that responds to edges with a specific
-    orientation). All of your SIFT-like feature can be constructed entirely
-    from filtering fairly quickly in this way.
-
-    You do not need to do the normalize -> threshold -> normalize again
-    operation as detailed in Szeliski and the SIFT paper. It can help, though.
-
-    Another simple trick which can help is to raise each element of the final
-    feature vector to some power that is less than one.
-
-    Args:
-    -   image: A numpy array of shape (m,n) or (m,n,c). can be grayscale or color, your choice
-    -   x: A numpy array of shape (k,), the x-coordinates of interest points
-    -   y: A numpy array of shape (k,), the y-coordinates of interest points
-    -   feature_width: integer representing the local feature width in pixels.
-            You can assume that feature_width will be a multiple of 4 (i.e. every
-                cell of your local SIFT-like feature will have an integer width
-                and height). This is the initial window size we examine around
-                each keypoint.
-    -   scales: Python list or tuple if you want to detect and describe features
-            at multiple scales
-
-    You may also detect and describe features at particular orientations.
-
-    Returns:
-    -   fv: A numpy array of shape (k, feat_dim) representing a feature vector.
-            "feat_dim" is the feature_dimensionality (e.g. 128 for standard SIFT).
-            These are the computed features.
-    """
     assert image.ndim == 2, 'Image must be grayscale'
-    #############################################################################
-    # TODO: YOUR CODE HERE                                                      #
-    # If you choose to implement rotation invariance, enabling it should not    #
-    # decrease your matching accuracy.                                          #
-    #############################################################################
 
-    raise NotImplementedError('`get_features` function in ' +
-        '`student_sift.py` needs to be implemented')
+    discretization = 8
 
-    #############################################################################
-    #                             END OF YOUR CODE                              #
-    #############################################################################
-    return fv
+    Gx, Gy = Filtered_Image( image )
+    Grad = Magnitude( Gx, Gy )
+    Grad_Dir = Grad_Direction( Gx, Gy )
+    Norm_Dir = Normalize_Direction( Grad_Dir )
+
+    x_coord = x_coord.astype( np.int32 )
+    y_coord = y_coord.astype( np.int32 )
+  
+    features = np.zeros( ( x_coord.shape[0], ((f_w//4) ** 2) * discretization ) )
+    hists = np.zeros( ( (f_w//4)**2, discretization ) )
+  
+    pad_img = np.pad( Norm_Dir, (f_w//2, f_w//2), 'constant')
+  
+  
+    for i in range( y_coord.shape[0] ):
+        patch = pad_img[int(y_coord[i]) : int(y_coord[i] + 2*f_w//2), int(x_coord[i]) : int(x_coord[i] + 2*f_w//2)]
+        index = 0
+    
+        for j in range( f_w // 4 ):
+            for k in range( f_w // 4 ):
+                square = patch[ j * f_w//4 : j * f_w//4 + f_w // 4, k * f_w//4 : k * f_w//4 + f_w // 4 ].flatten()
+                hist, e = np.histogram( square, bins=8, range=(0,360) ) #jeste zvazit
+                hists[index] = hist
+                index += 1
+    
+        features[i] = hists.flatten()    
+  
+    return features

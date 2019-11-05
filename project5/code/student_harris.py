@@ -2,101 +2,78 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def get_interest_points(image, feature_width):
-    """
-
-    JR adds: to ensure compatability with project 4A, you simply need to use
-    this function as a wrapper for your 4A code.  Guidelines below left
-    for historical reference purposes.
-
-    Implement the Harris corner detector (See Szeliski 4.1.1) to start with.
-    You can create additional interest point detector functions (e.g. MSER)
-    for extra credit.
-
-    If you're finding spurious interest point detections near the boundaries,
-    it is safe to simply suppress the gradients / corners near the edges of
-    the image.
-
-    Useful in this function in order to (a) suppress boundary interest
-    points (where a feature wouldn't fit entirely in the image, anyway)
-    or (b) scale the image filters being used. Or you can ignore it.
-
-    By default you do not need to make scale and orientation invariant
-    local features.
-
-    The lecture slides and textbook are a bit vague on how to do the
-    non-maximum suppression once you've thresholded the cornerness score.
-    You are free to experiment. For example, you could compute connected
-    components and take the maximum value within each component.
-    Alternatively, you could run a max() operator on each sliding window. You
-    could use this to ensure that every interest point is at a local maximum
-    of cornerness.
-
-    Args:
-    -   image: A numpy array of shape (m,n,c),
-                image may be grayscale of color (your choice)
-    -   feature_width: integer representing the local feature width in pixels.
-
-    Returns:
-    -   x: A numpy array of shape (N,) containing x-coordinates of interest points
-    -   y: A numpy array of shape (N,) containing y-coordinates of interest points
-    -   confidences (optional): numpy nd-array of dim (N,) containing the strength
-            of each interest point
-    -   scales (optional): A numpy array of shape (N,) containing the scale at each
-            interest point
-    -   orientations (optional): A numpy array of shape (N,) containing the orientation
-            at each interest point
-    """
     confidences, scales, orientations = None, None, None
-    #############################################################################
-    # TODO: YOUR HARRIS CORNER DETECTOR CODE HERE                                                      #
-    #############################################################################
 
-    raise NotImplementedError('`get_interest_points` function in ' +
-    '`student_harris.py` needs to be implemented')
+    Responses = HarrisDetector( image )
 
-    #############################################################################
-    #                             END OF YOUR CODE                              #
-    #############################################################################
-    
-    #############################################################################
-    # TODO: YOUR ADAPTIVE NON-MAXIMAL SUPPRESSION CODE HERE                     #
-    # While most feature detectors simply look for local maxima in              #
-    # the interest function, this can lead to an uneven distribution            #
-    # of feature points across the image, e.g., points will be denser           #
-    # in regions of higher contrast. To mitigate this problem, Brown,           #
-    # Szeliski, and Winder (2005) only detect features that are both            #
-    # local maxima and whose response value is significantly (10%)              #
-    # greater than that of all of its neighbors within a radius r. The          #
-    # goal is to retain only those points that are a maximum in a               #
-    # neighborhood of radius r pixels. One way to do so is to sort all          #
-    # points by the response strength, from large to small response.            #
-    # The first entry in the list is the global maximum, which is not           #
-    # suppressed at any radius. Then, we can iterate through the list           #
-    # and compute the distance to each interest point ahead of it in            #
-    # the list (these are pixels with even greater response strength).          #
-    # The minimum of distances to a keypoint's stronger neighbors               #
-    # (multiplying these neighbors by >=1.1 to add robustness) is the           #
-    # radius within which the current point is a local maximum. We              #
-    # call this the suppression radius of this interest point, and we           #
-    # save these suppression radii. Finally, we sort the suppression            #
-    # radii from large to small, and return the n keypoints                     #
-    # associated with the top n suppression radii, in this sorted               #
-    # orderself. Feel free to experiment with n, we used n=1500.                #
-    #                                                                           #
-    # See:                                                                      #
-    # https://www.microsoft.com/en-us/research/wp-content/uploads/2005/06/cvpr05.pdf
-    # or                                                                        #
-    # https://www.cs.ucsb.edu/~holl/pubs/Gauglitz-2011-ICIP.pdf                 #
-    #############################################################################
+    x, y, distances = SuppressNonMax(np.where(Responses>0.2*Responses.max(),Responses,0),5000)
 
-    raise NotImplementedError('adaptive non-maximal suppression in ' +
-    '`student_harris.py` needs to be implemented')
+    return x,y,None,None,None
 
-    #############################################################################
-    #                             END OF YOUR CODE                              #
-    #############################################################################
-    return x,y, confidences, scales, orientations
+
+def SobelKernels():
+    Kx = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+    Ky = np.asarray([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+
+    return Kx,Ky
+
+def ImageDerivative( image, Kx, Ky ):
+
+    Gx = cv2.filter2D( image, cv2.CV_16S, Kx )
+    Gy = cv2.filter2D( image, cv2.CV_16S, Ky )
+
+    return Gx,Gy
+
+def ConvolveWithGauss( image, GK, GK_T ):
+
+    output = cv2.filter2D( image, cv2.CV_16S, GK )
+    return cv2.filter2D( output, cv2.CV_16S, GK_T )
+
+def HarrisDetector(img,k = 0.04):
+    grayscale = img.copy()
+
+    Kx, Ky = SobelKernels()
+    Ix, Iy = ImageDerivative( grayscale, Kx, Ky ) 
+
+    Ixx = Ix * Ix
+    Ixy = Ix * Iy
+    Iyy = Iy * Iy 
+
+    GaussKernel = cv2.getGaussianKernel(ksize=5, sigma=1)
+    GaussKernel_T = GaussKernel.transpose()
+
+    Ixx = ConvolveWithGauss( Ixx, GaussKernel, GaussKernel_T ).astype( np.int32 )
+    Ixy = ConvolveWithGauss( Ixy, GaussKernel, GaussKernel_T ).astype( np.int32 )
+    Iyy = ConvolveWithGauss( Iyy, GaussKernel, GaussKernel_T ).astype( np.int32 )
+ 
+    #formula
+    R2 = ( Ixx * Iyy - Ixy * Ixy - k * ( Ixx + Iyy ) ** 2 ).astype( np.int32 )
+  
+    return R2 
+
+def SuppressNonMax(Rvals, numPts):
+    indices = np.nonzero( Rvals )
+    vals = Rvals[ indices ]
+
+    #connect the arrays into one
+    indices = np.stack( ( indices[0], indices[1], vals ), axis=-1 )
+
+    #sort by the R value
+    i_sorted = indices[indices[:,2].argsort()[::-1]]
+
+    ranges = np.copy( i_sorted )
+
+    indices = i_sorted[:,0:2]
+
+    ranges[0] = i_sorted[0]
+    ranges[0][2] = np.iinfo( np.int64 ).max
+
+    for i in range( 1, i_sorted.shape[0] ):
+        ranges[i][2] = np.linalg.norm(indices[0:i]-indices[i],axis=1).min()
+   
+    r_sorted = ranges[ranges[:,2].argsort()[::-1]]
+    return r_sorted[:numPts,1],r_sorted[:numPts,0],r_sorted[:numPts,2]
+
 
 
