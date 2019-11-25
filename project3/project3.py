@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 
+# In case all channels hold the same pixel value, use this function to reduce channel count from 3D image to 2D
 def reduce_channels(img):
     arr = np.ndarray((len(img), len(img[0])), dtype="uint8")
     for i in range(len(img)):
@@ -9,6 +10,7 @@ def reduce_channels(img):
             arr[i][j] = img[i][j][0]
     return arr
 
+# Function blurs image and find its vertical and horizontal gradients, from which the magnitude is calculated and edges are found
 def detect_edges(img):
     vertical_sobel = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
     horizontal_sobel = np.asarray([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
@@ -18,13 +20,15 @@ def detect_edges(img):
     h_dst = cv2.filter2D(img, -1, horizontal_sobel)
     return get_edge_magnitudes(v_dst, h_dst)
 
+# Calculates magnitude of gradients for each pixel
 def get_edge_magnitudes(vertical, horizontal):
     return np.clip(np.hypot(vertical, horizontal), 0, 255).astype(np.uint8)
     
+# Calculates orientation of gradients for each pixel
 def calculate_orientation(vertical, horizontal):
     return np.arctan2(horizontal, vertical)
 
-# greyscale values get separated along the value of 128 to either be black or white
+# Greyscale values get separated along the value of 128 to either be black or white
 def thresholding(img):
     x = len(img)
     y = len(img[0,:])
@@ -33,6 +37,8 @@ def thresholding(img):
     for i in range(x):
         for j in range(y):
             val = img[i][j]
+            
+            # threshold value
             if val < 128:
                 thresholdArr[i][j] = 0
             else:
@@ -40,22 +46,24 @@ def thresholding(img):
 
     return thresholdArr
 
+# Find nearest rho value in discretized space
 def nearest_rho(val, rho_res):
     return int(np.rint(val / rho_res) * rho_res)
 
-# parts of this function inspired by source: https://alyssaq.github.io/2014/understanding-hough-transform/
+# Parts of this function inspired by source: https://alyssaq.github.io/2014/understanding-hough-transform/
 def myHoughLines(image, rho_res, theta_res, threshold):
-    theta_vals = np.arange(0, math.pi, theta_res)   
-    l = int(np.ceil(np.hypot(len(image), len(image[0]))))
-    rhos = np.arange(-l, l, 2 * l)
+    theta_vals = np.arange(0, math.pi, theta_res) # discretize linear space of thetas to given range
+    l = int(np.ceil(np.hypot(len(image), len(image[0])))) # diagonal of image
+    rhos = np.arange(-l, l, 2 * l) # discretized space for rho values of given range
     
-    acc = np.zeros((2 * l, len(theta_vals)), dtype=np.uint32)
+    acc = np.zeros((2 * l, len(theta_vals)), dtype=np.uint32) # accumulator for voting for dominant lines
     y_edges, x_edges = np.nonzero(image)  # row and column indexes of edges
     
     for i in range(len(x_edges)):
         x = x_edges[i]
         y = y_edges[i]
         
+        # calculate rho of each pixel for each theta and vote for found line in accumulator
         for t in range(len(theta_vals)):
             rho = nearest_rho(x * np.cos(theta_vals[t]) + y * np.sin(theta_vals[t]), rho_res)
             acc[rho][t] += 1
@@ -68,6 +76,8 @@ def myHoughLines(image, rho_res, theta_res, threshold):
                 
     lines = np.ndarray((cnt, 2))
     index = 0
+    
+    # select dominant lines (marked by having vote count above given threshold)
     for i in range(len(acc)):
         for j in range(len(theta_vals)):
             if acc[i][j] > threshold:
@@ -84,7 +94,7 @@ def myHoughLines(image, rho_res, theta_res, threshold):
    
     return strong_lines
 
-# non-maximum suppression function to choose strongest pixels in local neighbourhoods
+# Non-maximum suppression function to choose strongest pixels in local neighbourhoods
 def non_max_suppression(magnitudes, orientations):
     padded_magnitudes = np.pad(magnitudes, (1, 1), 'constant')
     
@@ -117,7 +127,7 @@ def non_max_suppression(magnitudes, orientations):
                  
     return magnitudes    
     
-# double thresholding function to separate lines according to their strength
+# Double thresholding function to separate lines according to their strength
 def magnitude_threshold(val, t_h, t_l):
     if val < t_l:
         val = 0
@@ -127,7 +137,7 @@ def magnitude_threshold(val, t_h, t_l):
         return val
     return val
 
-# edge tracking function to thin out edge lines
+# Edge tracking function to thin out edge lines
 def track_edges(img, t_h, t_l):
     # get x and y indices for pixels with weak edges (t_l <= val <= t_h)
     #weak_edges_x, weak_edges_y = np.nonzero(np.where(np.logical_and(t_l <= img, img <= t_h), img, 0))
@@ -145,7 +155,7 @@ def track_edges(img, t_h, t_l):
             
     return img
 
-# wrapper for all functions included in the Canny edge detection tool
+# Wrapper for all functions included in the Canny edge detection tool
 def myCanny(img, t_h, t_l):
     # kernels
     vertical_sobel = np.asarray([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
@@ -155,9 +165,11 @@ def myCanny(img, t_h, t_l):
     # blur image with Gaussian filter
     img = cv2.filter2D(img, cv2.CV_16S, gaussian)
     
+    # gradients
     v_dst = cv2.filter2D(img, cv2.CV_16S, vertical_sobel)
     h_dst = cv2.filter2D(img, cv2.CV_16S, horizontal_sobel)
 
+    # magnitude and orientation for each pixel
     magnitudes = np.hypot(v_dst, h_dst)
     orientations = calculate_orientation(v_dst, h_dst)
     
