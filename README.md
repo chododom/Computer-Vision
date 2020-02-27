@@ -29,7 +29,7 @@ Set of computer vision assignments for my class of CSC 483 at Union College, NY,
 
 # Final project
 - recognition of planaria forms and Fourier transform of their shape
-- [Paper](./finals_results/Planaria_fourier_descriptors.pdf)
+- [Paper](./final_project/Planaria_fourier_descriptors.pdf)
 
 # Portfolio
 - image to ASCII convertor ([Writeup](./portfolio/ascii_convertor.ipynb))
